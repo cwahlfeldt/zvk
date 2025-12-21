@@ -28,10 +28,6 @@ pub fn build(b: *std.Build) void {
     const sdl3 = sdl3Dep.module("sdl3");
     exe.root_module.addImport("sdl3", sdl3);
 
-    // VMA
-    const vmaDep = b.dependency("vma", .{});
-    const vmaIncludePath = vmaDep.path("include");
-
     // Vulkan
     const vk_sdk = std.process.getEnvVarOwned(b.allocator, "VULKAN_SDK") catch {
         std.debug.panic("Environment variable VULKAN_SDK is not set", .{});
@@ -91,8 +87,6 @@ pub fn build(b: *std.Build) void {
         std.debug.panic("Could not find Vulkan include path", .{});
     };
     vk.addIncludePath(.{ .cwd_relative = vk_include });
-    vk.addIncludePath(vmaIncludePath);
-    vk.addCSourceFile(.{ .file = b.path("src/eng/vk/vma.cpp"), .flags = &.{"-std=c++17"} });
     exe.linkLibCpp();
 
     // Engine

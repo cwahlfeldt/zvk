@@ -1,12 +1,10 @@
 const vk = @import("mod.zig");
 const vulkan = @import("vulkan");
-const vma = vk.vma.vma;
 
 pub const VkImageData = struct {
     arrayLayers: u32 = 1,
     format: vulkan.Format = vulkan.Format.r8g8b8a8_srgb,
     height: u32,
-    memUsage: u32 = vma.VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
     mipLevels: u32 = 1,
     sampleCount: vulkan.SampleCountFlags = vulkan.SampleCountFlags.fromInt(1),
     tiling: vulkan.ImageTiling = vulkan.ImageTiling.optimal,
@@ -15,56 +13,50 @@ pub const VkImageData = struct {
 };
 
 pub const VkImage = struct {
-    image: vma.VkImage,
-    allocation: vma.VmaAllocation,
+    image: vulkan.Image,
     width: u32,
     height: u32,
+    memory: vulkan.DeviceMemory,
 
     pub fn create(vkCtx: *const vk.ctx.VkCtx, vkImageData: VkImageData) !VkImage {
-        const createInfo = vma.VkImageCreateInfo{
-            .sType = vma.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .imageType = vma.VK_IMAGE_TYPE_2D,
-            .format = @as(c_uint, @intCast(@intFromEnum(vkImageData.format))),
+        const createInfo = vulkan.ImageCreateInfo{
+            .image_type = vulkan.ImageType.@"2d",
+            .format = vkImageData.format,
             .extent = .{
                 .width = vkImageData.width,
                 .height = vkImageData.height,
                 .depth = 1,
             },
-            .mipLevels = vkImageData.mipLevels,
-            .arrayLayers = vkImageData.arrayLayers,
-            .samples = @as(c_uint, @intCast(vkImageData.sampleCount.toInt())),
-            .initialLayout = vma.VK_IMAGE_LAYOUT_UNDEFINED,
-            .sharingMode = vma.VK_SHARING_MODE_EXCLUSIVE,
-            .usage = @as(c_uint, @intCast(vkImageData.usage.toInt())),
+            .mip_levels = vkImageData.mipLevels,
+            .array_layers = vkImageData.arrayLayers,
+            .samples = vkImageData.sampleCount,
+            .usage = vkImageData.usage,
+            .sharing_mode = vulkan.SharingMode.exclusive,
+            .initial_layout = vulkan.ImageLayout.undefined,
+            .tiling = vkImageData.tiling,
         };
+        const image = try vkCtx.vkDevice.deviceProxy.createImage(&createInfo, null);
 
-        const allocCreateInfo = vma.VmaAllocationCreateInfo{
-            .usage = vma.VMA_MEMORY_USAGE_AUTO,
-            .flags = vkImageData.memUsage,
-            .priority = 1.0,
+        const memReqs = vkCtx.vkDevice.deviceProxy.getImageMemoryRequirements(image);
+
+        const allocInfo = vulkan.MemoryAllocateInfo{
+            .allocation_size = memReqs.size,
+            .memory_type_index = try vkCtx.findMemoryTypeIndex(memReqs.memory_type_bits, vulkan.MemoryPropertyFlags.fromInt(0)),
         };
+        const memory = try vkCtx.vkDevice.deviceProxy.allocateMemory(&allocInfo, null);
 
-        var image: vma.VkImage = undefined;
-        var allocation: vma.VmaAllocation = undefined;
-        if (vma.vmaCreateImage(
-            vkCtx.vkVmaAlloc.vmaAlloc,
-            @ptrCast(&createInfo),
-            @ptrCast(&allocCreateInfo),
-            @ptrCast(&image),
-            &allocation,
-            null,
-        ) != 0) {
-            @panic("Failed to create image");
-        }
+        try vkCtx.vkDevice.deviceProxy.bindImageMemory(image, memory, 0);
+
         return .{
             .image = image,
-            .allocation = allocation,
             .width = vkImageData.width,
             .height = vkImageData.height,
+            .memory = memory,
         };
     }
 
     pub fn cleanup(self: *const VkImage, vkCtx: *const vk.ctx.VkCtx) void {
-        vma.vmaDestroyImage(vkCtx.vkVmaAlloc.vmaAlloc, self.image, self.allocation);
+        vkCtx.vkDevice.deviceProxy.destroyImage(self.image, null);
+        vkCtx.vkDevice.deviceProxy.freeMemory(self.memory, null);
     }
 };

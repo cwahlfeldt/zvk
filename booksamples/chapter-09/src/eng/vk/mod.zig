@@ -14,4 +14,3 @@ pub const swap = @import("vkSwapChain.zig");
 pub const sync = @import("vkSync.zig");
 pub const text = @import("vkTexture.zig");
 pub const util = @import("vkUtils.zig");
-pub const vma = @import("vma.zig");

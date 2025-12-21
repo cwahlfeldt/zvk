@@ -201,9 +201,7 @@ pub const RenderScn = struct {
                 vkCtx,
                 vk.util.MATRIX_SIZE * 2,
                 .{ .uniform_buffer_bit = true },
-                @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
-                vk.vma.VmaUsage.VmaUsageAuto,
-                vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                .{ .host_visible_bit = true, .host_coherent_bit = true },
             );
         }
         return buffers;
@@ -317,7 +315,6 @@ pub const RenderScn = struct {
         const device = vkCtx.vkDevice.deviceProxy;
         const renderInfo = self.renderInfos[imageIndex];
 
-        const image: vulkan.Image = @enumFromInt(@intFromPtr(self.depthAttachments[imageIndex].vkImage.image));
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.depth_attachment_optimal,
@@ -339,7 +336,7 @@ pub const RenderScn = struct {
                 .base_array_layer = 0,
                 .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
             },
-            .image = image,
+            .image = self.depthAttachments[imageIndex].vkImage.image,
         }};
         const initDepInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = initBarriers.len,

@@ -66,17 +66,14 @@ pub const VkTexture = struct {
         const vkImage = try vk.img.VkImage.create(vkCtx, vkImageData);
         const imageViewData = vk.imv.VkImageViewData{ .format = vkTextureInfo.format };
 
-        const image: vulkan.Image = @enumFromInt(@intFromPtr(vkImage.image));
-        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, image, imageViewData);
+        const vkImageView = try vk.imv.VkImageView.create(vkCtx.vkDevice, vkImage.image, imageViewData);
 
         const dataSize = vkTextureInfo.data.len;
         const vkStageBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             dataSize,
-            vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
-            vk.vma.VmaUsage.VmaUsageAuto,
-            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+            .{ .transfer_src_bit = true },
+            .{ .host_visible_bit = true, .host_coherent_bit = true },
         );
         try vk.buf.copyDataToBuffer(vkCtx, &vkStageBuffer, &vkTextureInfo.data);
 
@@ -113,7 +110,6 @@ pub const VkTexture = struct {
     pub fn recordTransition(self: *const VkTexture, vkCtx: *const vk.ctx.VkCtx, cmdHandle: vulkan.CommandBuffer) void {
         // Record transition to dst optimal
         const device = vkCtx.vkDevice.deviceProxy;
-        const image: vulkan.Image = @enumFromInt(@intFromPtr(self.vkImage.image));
         const initBarriers = [_]vulkan.ImageMemoryBarrier2{.{
             .old_layout = vulkan.ImageLayout.undefined,
             .new_layout = vulkan.ImageLayout.transfer_dst_optimal,
@@ -130,7 +126,7 @@ pub const VkTexture = struct {
                 .base_array_layer = 0,
                 .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
             },
-            .image = image,
+            .image = self.vkImage.image,
         }};
         const initDepInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = initBarriers.len,
@@ -163,7 +159,7 @@ pub const VkTexture = struct {
         device.cmdCopyBufferToImage(
             cmdHandle,
             self.vkStageBuffer.?.buffer,
-            image,
+            self.vkImage.image,
             vulkan.ImageLayout.transfer_dst_optimal,
             region.len,
             &region,
@@ -186,7 +182,7 @@ pub const VkTexture = struct {
                 .base_array_layer = 0,
                 .layer_count = vulkan.REMAINING_ARRAY_LAYERS,
             },
-            .image = image,
+            .image = self.vkImage.image,
         }};
         const endDepInfo = vulkan.DependencyInfo{
             .image_memory_barrier_count = endBarriers.len,

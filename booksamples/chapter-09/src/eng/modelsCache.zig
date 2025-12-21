@@ -92,18 +92,14 @@ pub const MaterialsCache = struct {
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
-            vk.vma.VmaUsage.VmaUsageAuto,
-            vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+            vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
         );
         defer srcBuffer.cleanup(vkCtx);
         const dstBuffer = try vk.buf.VkBuffer.create(
             vkCtx,
             buffSize,
             vulkan.BufferUsageFlags{ .storage_buffer_bit = true, .transfer_dst_bit = true },
-            @intFromEnum(vk.vma.VmaFlags.None),
-            vk.vma.VmaUsage.VmaUsageAuto,
-            vk.vma.VmaMemoryFlags.None,
+            vulkan.MemoryPropertyFlags{},
         );
         const data = try srcBuffer.map(vkCtx);
         defer srcBuffer.unMap(vkCtx);
@@ -201,18 +197,14 @@ pub const ModelsCache = struct {
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
-                    vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
                 );
                 try srcBuffers.append(allocator, srcVtxBuffer);
                 const dstVtxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     verticesSize,
                     vulkan.BufferUsageFlags{ .vertex_buffer_bit = true, .transfer_dst_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.None),
-                    vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.None,
+                    vulkan.MemoryPropertyFlags{},
                 );
 
                 const dataVertices = try srcVtxBuffer.map(vkCtx);
@@ -226,18 +218,14 @@ pub const ModelsCache = struct {
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .transfer_src_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.VmaAllocationCreateHostAccessSSequentialWriteBit),
-                    vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.MemoryPropertyHostVisibleBit,
+                    vulkan.MemoryPropertyFlags{ .host_visible_bit = true },
                 );
                 try srcBuffers.append(allocator, srcIdxBuffer);
                 const dstIdxBuffer = try vk.buf.VkBuffer.create(
                     vkCtx,
                     indicesSize,
                     vulkan.BufferUsageFlags{ .index_buffer_bit = true, .transfer_dst_bit = true },
-                    @intFromEnum(vk.vma.VmaFlags.None),
-                    vk.vma.VmaUsage.VmaUsageAuto,
-                    vk.vma.VmaMemoryFlags.None,
+                    vulkan.MemoryPropertyFlags{},
                 );
 
                 const dataIndices = try srcIdxBuffer.map(vkCtx);

@@ -6,7 +6,6 @@ const vulkan = @import("vulkan");
 
 pub const VkCtx = struct {
     constants: com.common.Constants,
-    vkVmaAlloc: vk.vma.VkVmaAlloc,
     vkDescAllocator: vk.desc.VkDescAllocator,
     vkDevice: vk.dev.VkDevice,
     vkInstance: vk.inst.VkInstance,
@@ -35,11 +34,9 @@ pub const VkCtx = struct {
             constants.vsync,
         );
         const vkDescAllocator = try vk.desc.VkDescAllocator.create(allocator, vkPhysDevice, vkDevice);
-        const vkVmaAlloc = vk.vma.VkVmaAlloc.create(vkInstance, vkPhysDevice, vkDevice);
 
         return .{
             .constants = constants,
-            .vkVmaAlloc = vkVmaAlloc,
             .vkDescAllocator = vkDescAllocator,
             .vkDevice = vkDevice,
             .vkInstance = vkInstance,
@@ -50,7 +47,6 @@ pub const VkCtx = struct {
     }
 
     pub fn cleanup(self: *VkCtx, allocator: std.mem.Allocator) !void {
-        self.vkVmaAlloc.cleanup();
         self.vkDescAllocator.cleanup(allocator, self.vkDevice);
         self.vkSwapChain.cleanup(allocator, self.vkDevice);
         self.vkDevice.cleanup(allocator);

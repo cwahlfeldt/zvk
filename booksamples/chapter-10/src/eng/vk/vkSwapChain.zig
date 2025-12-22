@@ -117,7 +117,7 @@ pub const VkSwapChain = struct {
         if (caps.current_extent.width != 0xFFFF_FFFF) {
             return caps.current_extent;
         } else {
-            const windowSize = try window.getSize();
+            const windowSize = try sdl3.video.Window.getSizeInPixels(window);
             return .{
                 .width = std.math.clamp(@as(u32, @intCast(windowSize[0])), caps.min_image_extent.width, caps.max_image_extent.width),
                 .height = std.math.clamp(@as(u32, @intCast(windowSize[1])), caps.min_image_extent.height, caps.max_image_extent.height),

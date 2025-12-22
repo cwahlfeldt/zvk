@@ -126,8 +126,231 @@ pub fn build(b: *std.Build) void {
 }
 ```
 
-zig build run
+## Main
 
-## Renderdoc
+So let's start from the beginning with, of all things, our `main.zig` file:
 
-RENDERDOC: export SDL_VIDEODRIVER=x11
+```zig
+const eng = @import("eng");
+const std = @import("std");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer if (gpa.deinit() == .leak) @panic("memory leaked");
+
+    const allocator = gpa.allocator();
+
+    const wndTitle = "Vulkan Book";
+    var game = Game{};
+    var engine = try eng.engine.Engine(Game).create(allocator, &game, wndTitle);
+    try engine.run();
+}
+
+const Game = struct {
+    pub fn cleanup(self: *Game) void {
+        _ = self;
+    }
+
+    pub fn init(self: *Game, engCtx: *eng.engine.EngCtx) void {
+        _ = self;
+        _ = engCtx;
+    }
+
+    pub fn input(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
+        _ = self;
+        _ = engCtx;
+        _ = deltaSec;
+    }
+
+    pub fn update(self: *Game, engCtx: *eng.engine.EngCtx, deltaSec: f32) void {
+        _ = self;
+        _ = engCtx;
+        _ = deltaSec;
+    }
+};
+```
+
+As you can see, in the `main` function, we just start our render/game engine, modeled by the `Engine` struct.
+This struct requires, in its `create` function, the name of the window and a reference to the `Game` struct which will implement the application logic.
+This is controlled by the following functions:
+
+- `cleanup`: Which is invoked when the application finished to properly release the acquired resources.
+- `init`: Invoked upon application startup to create the required resources (meshes, textures, etc.).
+- `input`: Which is invoked periodically so that the application can update its stated reacting to user input.
+- `update`: Which is invoked periodically so that the application can update its state.
+
+## Engine
+
+Engine code us located under `src/eng` and all the submodules are defined in the `mod.zig` file:
+
+```zig
+pub const engine = @import("eng.zig");
+pub const rend = @import("render.zig");
+pub const wnd = @import("wnd.zig");
+```
+
+This is the source code of the `Engine` type defined in the `eng.zig` file:
+
+```zig
+const com = @import("com");
+const eng = @import("mod.zig");
+const std = @import("std");
+
+pub const EngCtx = struct {
+    allocator: std.mem.Allocator,
+    constants: com.common.Constants,
+    wnd: eng.wnd.Wnd,
+
+    pub fn cleanup(self: *EngCtx) !void {
+        try self.wnd.cleanup();
+        self.constants.cleanup(self.allocator);
+    }
+};
+
+pub fn Engine(comptime GameLogic: type) type {
+    return struct {
+        engCtx: EngCtx,
+        gameLogic: *GameLogic,
+        render: eng.rend.Render,
+
+        fn cleanup(self: *Engine(GameLogic)) !void {
+            self.gameLogic.cleanup();
+            try self.render.cleanup(self.engCtx.allocator);
+            try self.engCtx.cleanup();
+        }
+
+        pub fn create(allocator: std.mem.Allocator, gameLogic: *GameLogic, wndTitle: [:0]const u8) !Engine(GameLogic) {
+            const engCtx = EngCtx{
+                .allocator = allocator,
+                .constants = try com.common.Constants.load(allocator),
+                .wnd = try eng.wnd.Wnd.create(wndTitle),
+            };
+
+            const render = try eng.rend.Render.create();
+
+            return .{
+                .engCtx = engCtx,
+                .gameLogic = gameLogic,
+                .render = render,
+            };
+        }
+
+        fn init(self: *Engine(GameLogic)) !void {
+            self.gameLogic.init(&self.engCtx);
+        }
+
+        pub fn run(self: *Engine(GameLogic)) !void {
+            try self.init();
+
+            var timer = try std.time.Timer.start();
+            var lastTime = timer.read();
+            var updateTime = lastTime;
+            var deltaUpdate: f32 = 0.0;
+            const timeU: f32 = 1.0 / self.engCtx.constants.ups;
+
+            while (!self.engCtx.wnd.closed) {
+                const now = timer.read();
+                const deltaNs = now - lastTime;
+                const deltaSec = @as(f32, @floatFromInt(deltaNs)) / 1_000_000_000.0;
+                deltaUpdate += deltaSec / timeU;
+
+                try self.engCtx.wnd.pollEvents();
+
+                self.gameLogic.input(&self.engCtx, deltaSec);
+
+                if (deltaUpdate >= 1) {
+                    const difUpdateSecs = @as(f32, @floatFromInt(now - updateTime)) / 1_000_000_000.0;
+                    self.gameLogic.update(&self.engCtx, difUpdateSecs);
+                    deltaUpdate -= 1;
+                    updateTime = now;
+                }
+
+                try self.render.render(&self.engCtx);
+
+                lastTime = now;
+            }
+
+            try self.cleanup();
+        }
+    };
+}
+```
+
+The `EngCtx`servers as a context holder for the main elements of the engine, the allocator, the engine constants (we will come back to this later on),
+and the main window. The `Engine` type needs to be instantiated through the `create` function which just loads the constants and creates the window. It
+provides a `cleanup` function which just frees the allocated resources. The `run` function is where the game loop is implemented.
+We basically control the elapsed time since the last loop block to check if enough seconds have passed to update the state. If so,
+we've calculated the elapsed time since the last update and invoke the `update` function from the `GameLogic` reference.
+We invoke the `input` from the `GameLogic` instance and the `render` method in each turn of the loop.
+Later on, we will be able to limit the frame rate using vsync, or leave it uncapped. bu now it will just run at full speed.
+
+You may have noticed that we use a struct named `Constants`, which in this case establishes the updates per second.
+This is a struct which reads a property file that will allow us to configure several parameters of the engine at runtime. It is defined in the `com`
+module (named for common), which requires a new `mod.zig` file:
+
+```zig
+pub const common = @import("common.zig");
+```
+
+The `Constants` struct is defined in the `common.zig` file:
+
+```zig
+const std = @import("std");
+const toml = @import("toml");
+
+pub const Constants = struct {
+    ups: f32,
+
+    pub fn load(allocator: std.mem.Allocator) !Constants {
+        var parser = toml.Parser(Constants).init(allocator);
+        defer parser.deinit();
+
+        const result = try parser.parseFile("res/cfg/cfg.toml");
+        defer result.deinit();
+
+        const tmp = result.value;
+        const constants = Constants{
+            .ups = tmp.ups,
+        };
+
+        return constants;
+    }
+
+    pub fn cleanup(self: *Constants, allocator: std.mem.Allocator) void {
+        _ = self;
+        _ = allocator;
+    }
+};
+```
+
+The code is pretty straight forward. We just use TOML to parse `res/cfg/cfg.toml` file to load the value of the updates per second cofniguration parameter.
+
+Right now the `cfg.toml` is defined like this:
+
+```toml
+ups=40
+```
+
+At this point, the `Render` struct is just an empty shell:
+
+```zig
+const eng = @import("mod.zig");
+const std = @import("std");
+
+pub const Render = struct {
+    pub fn cleanup(self: *Render, allocator: std.mem.Allocator) !void {
+        _ = self;
+        _ = allocator;
+    }
+
+    pub fn create() !Render {
+        return .{};
+    }
+
+    pub fn render(self: *Render, engCtx: *eng.engine.EngCtx) !void {
+        _ = self;
+        _ = engCtx;
+    }
+};
+```
+

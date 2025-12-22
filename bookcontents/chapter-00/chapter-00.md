@@ -101,3 +101,11 @@ The following list collects the ones that I've found more useful, and that I've 
 - [Khronos Vulkan samples](https://github.com/KhronosGroup/Vulkan-Samples).
 
 [Next chapter](../chapter-01/chapter-01.md)
+
+## Renderdoc
+
+[Renderdoc](https://renderdoc.org/) is a great tool to debug what is happening in your GPU when rendering a frame. Using this tool with
+the code is quite simple, just select the executable and launch it. 
+
+> [!WARNING]  
+> If you are using Linux with Wayland just make sure to have the `SDL_VIDEODRIVER` environment variable to `x11`.

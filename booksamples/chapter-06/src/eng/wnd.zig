@@ -36,29 +36,19 @@ pub const Wnd = struct {
             return error.VulkanNotSupported;
         };
 
-        const window = try sdl3.video.Window.init(wndTitle, 300, 300, .{
-            .resizable = true,
-            .maximized = true,
-            .vulkan = true,
-        });
+        const bounds = try sdl3.video.Display.getUsableBounds(try sdl3.video.Display.getPrimaryDisplay());
+
+        const window = try sdl3.video.Window.init(
+            wndTitle,
+            @as(u32, @intCast(bounds.w)),
+            @as(u32, @intCast(bounds.h)),
+            .{
+                .resizable = true,
+                .vulkan = true,
+            },
+        );
 
         log.debug("Created window", .{});
-
-        log.debug("Waiting for window to be maximized", .{});
-        var gotSize = false;
-        while (!gotSize) {
-            while (sdl3.events.poll()) |event| {
-                switch (event) {
-                    .window_resized => {
-                        const windowSize = try window.getSize();
-                        log.debug("Window resized to {d}x{d}", .{ windowSize[0], windowSize[1] });
-                        gotSize = true;
-                    },
-                    else => {},
-                }
-            }
-            std.Thread.sleep(10 * std.time.ns_per_ms);
-        }
 
         return .{
             .window = window,

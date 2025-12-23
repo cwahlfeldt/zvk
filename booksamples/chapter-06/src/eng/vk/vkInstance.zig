@@ -11,10 +11,6 @@ pub const VkInstance = struct {
     pub fn create(allocator: std.mem.Allocator, validate: bool) !VkInstance {
         const sdlExtensions = try sdl3.vulkan.getInstanceExtensions();
 
-        for (sdlExtensions) |value| {
-            log.debug("SDL extension: {s}", .{value});
-        }
-
         const rawProc = sdl3.vulkan.getVkGetInstanceProcAddr() catch |err| {
             std.debug.print("SDL Vulkan not available: {}\n", .{err});
             return err;
@@ -23,23 +19,11 @@ pub const VkInstance = struct {
         const loader: vulkan.PfnGetInstanceProcAddr = @ptrCast(rawProc);
         const vkb = vulkan.BaseWrapper.load(loader);
 
-        var extension_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
-        defer extension_names.deinit(allocator);
-        try extension_names.appendSlice(allocator, @ptrCast(sdlExtensions[0..sdlExtensions.len]));
-        const is_macos = builtin.target.os.tag == .macos;
-        if (is_macos) {
-            try extension_names.append("VK_KHR_portability_enumeration");
-        }
-
-        for (extension_names.items) |value| {
-            log.debug("Instance create extension: {s}", .{value});
-        }
-
         const appInfo = vulkan.ApplicationInfo{
             .p_application_name = "app_name",
-            .application_version = @bitCast(vulkan.makeApiVersion(0, 0, 0, 0)),
+            .application_version = @bitCast(vulkan.makeApiVersion(0, 1, 0, 0)),
             .p_engine_name = "app_name",
-            .engine_version = @bitCast(vulkan.makeApiVersion(0, 0, 0, 0)),
+            .engine_version = @bitCast(vulkan.makeApiVersion(0, 1, 0, 0)),
             .api_version = @bitCast(vulkan.API_VERSION_1_3),
         };
 
@@ -48,6 +32,22 @@ pub const VkInstance = struct {
         if (validate) {
             log.debug("Enabling validation. Make sure Vulkan SDK is installed", .{});
             try layer_names.append(allocator, "VK_LAYER_KHRONOS_validation");
+        }
+
+        for (sdlExtensions) |value| {
+            log.debug("SDL extension: {s}", .{value});
+        }
+
+        var extension_names = try std.ArrayList([*:0]const u8).initCapacity(allocator, 2);
+        defer extension_names.deinit(allocator);
+        try extension_names.appendSlice(allocator, sdlExtensions);
+        const is_macos = builtin.target.os.tag == .macos;
+        if (is_macos) {
+            try extension_names.append("VK_KHR_portability_enumeration");
+        }
+
+        for (extension_names.items) |value| {
+            log.debug("Instance create extension: {s}", .{value});
         }
 
         const createInfo = vulkan.InstanceCreateInfo{
@@ -71,5 +71,6 @@ pub const VkInstance = struct {
         log.debug("Destroying Vulkan instance", .{});
         self.instanceProxy.destroyInstance(null);
         allocator.destroy(self.instanceProxy.wrapper);
+        self.instanceProxy = undefined;
     }
 };

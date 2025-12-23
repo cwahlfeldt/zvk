@@ -76,10 +76,10 @@ This book assumes that you have a good understanding of Zig language, and some p
 
 Requisites:
 
-- [Zig](https://ziglang.org/): We will be using 0.15.2 version
-
+- [Zig](https://ziglang.org/): We will be using 0.15.2 version.
 - The Vulkan [SDK](https://vulkan.lunarg.com/). You will need to install it for your operative system. You will need to setup an environment variable
 named `VULKAN_SDK` which points to the root folder of the SDK.
+- We will be using Vulkan 1.3 so make sure your GPU supports that version.
 
 > [!WARNING]  
 > Source code is structured as a several zig projects. The recommended approach is to open each chapter independently. Resources (3D models, shaders, etc.)

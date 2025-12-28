@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ctx.site_name}}</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 1rem;
+        overflow-x: auto;
+      }
+      code {
+        background: #f4f4f4;
+        padding: 0.2rem 0.4rem;
+      }
+    </style>
+  </head>
+  <body>
+    {{> nav}}
+    <main>{{content}}</main>
+  </body>
+</html>

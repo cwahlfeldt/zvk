@@ -1,0 +1,14 @@
+.{
+    .name = .ssg,
+    .version = "0.1.0",
+    .fingerprint = 0x7e32d1d5e7c9c10f,
+    .minimum_zig_version = "0.15.0",
+
+    .dependencies = .{},
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
